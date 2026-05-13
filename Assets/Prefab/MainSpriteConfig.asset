@@ -1,0 +1,24 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 027dc0465db8c2a4e9847358b688e45a, type: 3}
+  m_Name: MainSpriteConfig
+  m_EditorClassIdentifier: 
+  wallSprites: []
+  floorSprites: []
+  playerPrefab: {fileID: 0}
+  enemyPrefab: {fileID: 0}
+  keyPrefab: {fileID: 0}
+  exitLockedPrefab: {fileID: 0}
+  exitUnlockedPrefab: {fileID: 0}
+  bonusPrefabs:
+  - {fileID: 2024824965743828148, guid: 97d02210696a30f4a953d25b22dec008, type: 3}
+  - {fileID: 6713143452406772875, guid: 4898cd030b85c5c408a4ad441691923d, type: 3}
