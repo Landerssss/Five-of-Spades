@@ -18,13 +18,21 @@ public class CameraController : MonoBehaviour
     {
         if (cam == null) cam = Camera.main;
 
-        cam.transform.position = new Vector3(center.x, center.y, -10f);
-
+        float screenAspect = (float)Screen.width / Screen.height;
+        
+        // 1. 计算适配地图所需的 Size (确保高度和宽度都能装下，并加上边距)
         float halfHeight = (mapHeight * 0.5f) + padding;
         float halfWidth = (mapWidth * 0.5f) + padding;
-        float screenAspect = (float)Screen.width / Screen.height;
         float requiredSize = Mathf.Max(halfHeight, halfWidth / screenAspect);
-
         cam.orthographicSize = requiredSize;
+
+        // 2. 锚点对齐左下角逻辑：
+        // 地图左下角物体的中心点坐标是 (0, 0)，边缘是 (-0.5, -0.5)
+        // 我们让摄像机视口的左边缘和下边缘正好等于 -0.5，这样地图就紧贴角落了
+        
+        float targetX = (cam.orthographicSize * screenAspect) - 0.5f;
+        float targetY = cam.orthographicSize - 0.5f;
+
+        cam.transform.position = new Vector3(targetX, targetY, -10f);
     }
 }
