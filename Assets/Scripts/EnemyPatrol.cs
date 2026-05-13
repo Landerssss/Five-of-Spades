@@ -1,5 +1,9 @@
 using UnityEngine;
 
+/// <summary>
+/// Enemy patrol behavior. Attach to the Enemy prefab which should have its own SpriteRenderer.
+/// Moves one step along patrolPath each player turn.
+/// </summary>
 public class EnemyPatrol : MonoBehaviour
 {
     private Vector2Int[] patrolPath;
@@ -7,7 +11,10 @@ public class EnemyPatrol : MonoBehaviour
 
     public Vector2Int GridPosition { get; private set; }
 
-    public void Initialize(Vector2Int[] path, Sprite sprite)
+    /// <summary>
+    /// Called by GameManager. Only sets up patrol data — visual is handled by the prefab.
+    /// </summary>
+    public void Initialize(Vector2Int[] path)
     {
         patrolPath = path;
         pathIndex = 0;
@@ -20,24 +27,6 @@ public class EnemyPatrol : MonoBehaviour
 
         GridPosition = patrolPath[0];
         transform.position = new Vector3(GridPosition.x, GridPosition.y, 0);
-        transform.localScale = Vector3.one * 0.8f;
-
-        SpriteRenderer sr = gameObject.AddComponent<SpriteRenderer>();
-        sr.sprite = sprite;
-        sr.color = new Color(0.56f, 0.07f, 1f); // Purple
-        sr.sortingOrder = 3;
-
-        // Label
-        GameObject labelObj = new GameObject("Label");
-        labelObj.transform.SetParent(transform, false);
-        labelObj.transform.localPosition = Vector3.zero;
-        var tmp = labelObj.AddComponent<TMPro.TextMeshPro>();
-        tmp.text = "!";
-        tmp.fontSize = 4;
-        tmp.alignment = TMPro.TextAlignmentOptions.Center;
-        tmp.color = Color.white;
-        tmp.sortingOrder = 4;
-        tmp.rectTransform.sizeDelta = new Vector2(1f, 1f);
     }
 
     /// <summary>
