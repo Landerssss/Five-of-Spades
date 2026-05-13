@@ -5,6 +5,9 @@ public class GameManager : MonoBehaviour
 {
     public static GameManager Instance { get; private set; }
 
+    [Header("Visual Config (assign SpriteConfig asset)")]
+    [SerializeField] private SpriteConfig spriteConfig;
+
     [Header("Level Data (assign in Inspector)")]
     [SerializeField] private LevelData[] levels;
 
@@ -17,10 +20,11 @@ public class GameManager : MonoBehaviour
     // Runtime state
     private int currentLevelIndex = 0;
     private int keysCollected = 0;
-    private bool currentLevelHasKey = false;
+    private bool keyCollectedThisLevel = false;
 
     // Runtime objects
     private PlayerController player;
+    private GameObject playerObj;
     private GameObject keyObject;
     private GameObject exitObject;
     private List<GameObject> bonusObjects = new List<GameObject>();
@@ -31,7 +35,6 @@ public class GameManager : MonoBehaviour
     private Dictionary<Vector2Int, int> bonusPositions = new Dictionary<Vector2Int, int>();
     private Vector2Int keyPosition;
     private Vector2Int exitPosition;
-    private bool keyCollectedThisLevel = false;
 
     public int TotalKeys => levels != null ? levels.Length : 0;
     public int KeysCollected => keysCollected;
@@ -78,14 +81,13 @@ public class GameManager : MonoBehaviour
 
         LevelData data = levels[levelIndex];
         currentLevelIndex = levelIndex;
-        currentLevelHasKey = false;
         keyCollectedThisLevel = false;
 
         // Clear old entities
         ClearEntities();
 
-        // Build grid
-        gridManager.BuildMap(data);
+        // Build grid (pass spriteConfig for wall/floor variants)
+        gridManager.BuildMap(data, spriteConfig);
 
         // Camera
         cameraController.FitToMap(data.width, data.height, gridManager.GetMapCenter());
@@ -93,46 +95,55 @@ public class GameManager : MonoBehaviour
         // Create entities parent
         entitiesParent = new GameObject("Entities").transform;
 
-        Sprite sprite = gridManager.SharedSprite;
-
-        // Spawn player — fallback if overrideSpawn is out of bounds or on a wall
+        // ---- Spawn player ----
         Vector2Int spawnPos = data.playerSpawn;
         if (overrideSpawn.HasValue && gridManager.IsWalkable(overrideSpawn.Value))
         {
             spawnPos = overrideSpawn.Value;
         }
-        if (player == null)
+
+        if (playerObj == null)
         {
-            GameObject playerObj = new GameObject("Player");
-            player = playerObj.AddComponent<PlayerController>();
+            playerObj = SpawnPrefabOrFallback(
+                spriteConfig != null ? spriteConfig.playerPrefab : null,
+                "Player", spawnPos, 5, Color.blue);
+            player = playerObj.GetComponent<PlayerController>();
+            if (player == null) player = playerObj.AddComponent<PlayerController>();
         }
         player.Revive();
-        player.Initialize(this, gridManager, turnSystem, spawnPos, sprite);
+        player.Initialize(this, gridManager, turnSystem, spawnPos);
 
-        // Spawn key
+        // ---- Spawn key ----
         keyPosition = data.keyPosition;
-        keyObject = CreateEntity("Key", keyPosition, sprite,
-            new Color(0.96f, 0.65f, 0.14f), "K", 2);
+        keyObject = SpawnPrefabOrFallback(
+            spriteConfig != null ? spriteConfig.keyPrefab : null,
+            "Key", keyPosition, 2, new Color(0.96f, 0.65f, 0.14f));
+        keyObject.transform.SetParent(entitiesParent);
 
-        // Spawn exit (locked initially)
+        // ---- Spawn exit (locked) ----
         exitPosition = data.exitPosition;
-        exitObject = CreateEntity("Exit", exitPosition, sprite,
-            new Color(0.82f, 0.01f, 0.11f), "X", 1);
+        exitObject = SpawnPrefabOrFallback(
+            spriteConfig != null ? spriteConfig.exitLockedPrefab : null,
+            "Exit", exitPosition, 1, new Color(0.82f, 0.01f, 0.11f));
+        exitObject.transform.SetParent(entitiesParent);
 
-        // Spawn bonus items
+        // ---- Spawn bonus items ----
         bonusPositions.Clear();
         if (data.bonusItems != null)
         {
-            foreach (var bonus in data.bonusItems)
+            for (int i = 0; i < data.bonusItems.Length; i++)
             {
-                GameObject obj = CreateEntity("Bonus", bonus.position, sprite,
-                    new Color(0.31f, 0.89f, 0.76f), "+" + bonus.bonusAmount, 2);
+                var bonus = data.bonusItems[i];
+                GameObject prefab = (spriteConfig != null) ? spriteConfig.GetBonusPrefab(i) : null;
+                GameObject obj = SpawnPrefabOrFallback(
+                    prefab, "Bonus", bonus.position, 2, new Color(0.31f, 0.89f, 0.76f));
+                obj.transform.SetParent(entitiesParent);
                 bonusObjects.Add(obj);
                 bonusPositions[bonus.position] = bonus.bonusAmount;
             }
         }
 
-        // Spawn enemies
+        // ---- Spawn enemies ----
         if (data.enemies != null)
         {
             foreach (var enemyData in data.enemies)
@@ -140,10 +151,15 @@ public class GameManager : MonoBehaviour
                 if (enemyData.patrolPath == null || enemyData.patrolPath.Length == 0)
                     continue;
 
-                GameObject enemyObj = new GameObject("Enemy");
-                enemyObj.transform.parent = entitiesParent;
-                EnemyPatrol patrol = enemyObj.AddComponent<EnemyPatrol>();
-                patrol.Initialize(enemyData.patrolPath, sprite);
+                GameObject prefab = (spriteConfig != null) ? spriteConfig.enemyPrefab : null;
+                Vector2Int startPos = enemyData.patrolPath[0];
+                GameObject enemyObj = SpawnPrefabOrFallback(
+                    prefab, "Enemy", startPos, 3, new Color(0.56f, 0.07f, 1f));
+                enemyObj.transform.SetParent(entitiesParent);
+
+                EnemyPatrol patrol = enemyObj.GetComponent<EnemyPatrol>();
+                if (patrol == null) patrol = enemyObj.AddComponent<EnemyPatrol>();
+                patrol.Initialize(enemyData.patrolPath);
                 enemies.Add(patrol);
             }
         }
@@ -158,6 +174,58 @@ public class GameManager : MonoBehaviour
             uiManager.UpdateKeys(keysCollected, TotalKeys);
             uiManager.HideGameOver();
         }
+    }
+
+    /// <summary>
+    /// If prefab is assigned, instantiate it. Otherwise create a fallback colored square.
+    /// </summary>
+    private GameObject SpawnPrefabOrFallback(GameObject prefab, string name,
+        Vector2Int gridPos, int sortOrder, Color fallbackColor)
+    {
+        GameObject obj;
+
+        if (prefab != null)
+        {
+            obj = Instantiate(prefab);
+            obj.name = name;
+        }
+        else
+        {
+            // Fallback: create a colored square (same as old behavior)
+            obj = new GameObject(name);
+            SpriteRenderer sr = obj.AddComponent<SpriteRenderer>();
+            sr.sprite = CreateFallbackSprite();
+            sr.color = fallbackColor;
+            sr.sortingOrder = sortOrder;
+            obj.transform.localScale = Vector3.one * 0.75f;
+        }
+
+        obj.transform.position = new Vector3(gridPos.x, gridPos.y, 0);
+
+        // Ensure SpriteRenderer sorting order is set for prefabs too
+        SpriteRenderer prefabSR = obj.GetComponent<SpriteRenderer>();
+        if (prefabSR != null)
+        {
+            prefabSR.sortingOrder = sortOrder;
+        }
+
+        return obj;
+    }
+
+    private Sprite _fallbackSprite;
+    private Sprite CreateFallbackSprite()
+    {
+        if (_fallbackSprite != null) return _fallbackSprite;
+        int size = 32;
+        Texture2D tex = new Texture2D(size, size);
+        tex.filterMode = FilterMode.Point;
+        Color[] px = new Color[size * size];
+        for (int i = 0; i < px.Length; i++) px[i] = Color.white;
+        tex.SetPixels(px);
+        tex.Apply();
+        _fallbackSprite = Sprite.Create(tex, new Rect(0, 0, size, size),
+            new Vector2(0.5f, 0.5f), size);
+        return _fallbackSprite;
     }
 
     private void ClearEntities()
@@ -175,34 +243,6 @@ public class GameManager : MonoBehaviour
         bonusPositions.Clear();
     }
 
-    private GameObject CreateEntity(string name, Vector2Int pos, Sprite sprite,
-        Color color, string label, int sortOrder)
-    {
-        GameObject obj = new GameObject(name);
-        if (entitiesParent != null) obj.transform.parent = entitiesParent;
-        obj.transform.position = new Vector3(pos.x, pos.y, 0);
-        obj.transform.localScale = Vector3.one * 0.75f;
-
-        SpriteRenderer sr = obj.AddComponent<SpriteRenderer>();
-        sr.sprite = sprite;
-        sr.color = color;
-        sr.sortingOrder = sortOrder;
-
-        // Text label
-        GameObject labelObj = new GameObject("Label");
-        labelObj.transform.SetParent(obj.transform, false);
-        labelObj.transform.localPosition = Vector3.zero;
-        var tmp = labelObj.AddComponent<TMPro.TextMeshPro>();
-        tmp.text = label;
-        tmp.fontSize = 3.5f;
-        tmp.alignment = TMPro.TextAlignmentOptions.Center;
-        tmp.color = Color.white;
-        tmp.sortingOrder = sortOrder + 1;
-        tmp.rectTransform.sizeDelta = new Vector2(1.3f, 1.3f);
-
-        return obj;
-    }
-
     // ============ ITEM COLLECTION (called by PlayerController during slide) ============
 
     public void CollectItemsAt(Vector2Int pos)
@@ -214,15 +254,8 @@ public class GameManager : MonoBehaviour
             Destroy(keyObject);
             keyObject = null;
 
-            // Unlock exit visual
-            if (exitObject != null)
-            {
-                SpriteRenderer sr = exitObject.GetComponent<SpriteRenderer>();
-                if (sr != null) sr.color = new Color(0.49f, 0.83f, 0.13f); // Green
-
-                TMPro.TextMeshPro tmp = exitObject.GetComponentInChildren<TMPro.TextMeshPro>();
-                if (tmp != null) tmp.text = "E";
-            }
+            // Swap exit to unlocked visual
+            SwapExitToUnlocked();
         }
 
         // Bonus
@@ -248,6 +281,42 @@ public class GameManager : MonoBehaviour
             }
 
             if (uiManager != null) uiManager.UpdateMoves(turnSystem.movesLeft);
+        }
+    }
+
+    /// <summary>
+    /// Swap exit object to the unlocked prefab, or just recolor if no prefab.
+    /// </summary>
+    private void SwapExitToUnlocked()
+    {
+        if (exitObject == null) return;
+
+        if (spriteConfig != null && spriteConfig.exitUnlockedPrefab != null)
+        {
+            // Replace with unlocked prefab
+            Vector3 pos = exitObject.transform.position;
+            Transform parent = exitObject.transform.parent;
+            int sortOrder = 1;
+            SpriteRenderer oldSR = exitObject.GetComponent<SpriteRenderer>();
+            if (oldSR != null) sortOrder = oldSR.sortingOrder;
+
+            Destroy(exitObject);
+            exitObject = Instantiate(spriteConfig.exitUnlockedPrefab);
+            exitObject.name = "Exit_Unlocked";
+            exitObject.transform.position = pos;
+            exitObject.transform.SetParent(parent);
+
+            SpriteRenderer newSR = exitObject.GetComponent<SpriteRenderer>();
+            if (newSR != null) newSR.sortingOrder = sortOrder;
+        }
+        else
+        {
+            // Fallback: just recolor
+            SpriteRenderer sr = exitObject.GetComponent<SpriteRenderer>();
+            if (sr != null) sr.color = new Color(0.49f, 0.83f, 0.13f);
+
+            TMPro.TextMeshPro tmp = exitObject.GetComponentInChildren<TMPro.TextMeshPro>();
+            if (tmp != null) tmp.text = "E";
         }
     }
 
@@ -315,7 +384,6 @@ public class GameManager : MonoBehaviour
 
     public void RestartCurrentLevel()
     {
-        // Reset key progress for this level only (don't lose previous keys)
         keyCollectedThisLevel = false;
         LoadLevel(currentLevelIndex, null);
     }

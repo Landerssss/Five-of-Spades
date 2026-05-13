@@ -2,6 +2,10 @@ using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
 
+/// <summary>
+/// Player controller. Attach to the Player prefab which should have its own SpriteRenderer.
+/// If no SpriteRenderer exists, a fallback is created.
+/// </summary>
 public class PlayerController : MonoBehaviour
 {
     [SerializeField] private float slideSpeed = 15f;
@@ -16,9 +20,14 @@ public class PlayerController : MonoBehaviour
     private TurnSystem turnSystem;
     private SpriteRenderer spriteRenderer;
 
-    private readonly Color playerColor = new Color(0.29f, 0.56f, 0.85f);
+    // Cached original color from the prefab's SpriteRenderer
+    private Color originalColor;
 
-    public void Initialize(GameManager gm, GridManager grid, TurnSystem turn, Vector2Int startPos, Sprite sprite)
+    /// <summary>
+    /// Called by GameManager each time a level loads.
+    /// No longer needs a Sprite parameter — the prefab already has its sprite.
+    /// </summary>
+    public void Initialize(GameManager gm, GridManager grid, TurnSystem turn, Vector2Int startPos)
     {
         gameManager = gm;
         gridManager = grid;
@@ -30,15 +39,12 @@ public class PlayerController : MonoBehaviour
 
         if (spriteRenderer == null)
             spriteRenderer = GetComponent<SpriteRenderer>();
-        if (spriteRenderer == null)
-            spriteRenderer = gameObject.AddComponent<SpriteRenderer>();
 
-        spriteRenderer.sprite = sprite;
-        spriteRenderer.color = playerColor;
-        spriteRenderer.sortingOrder = 5;
-
-        // Scale slightly smaller so grid lines show
-        transform.localScale = Vector3.one * 0.85f;
+        // Cache original color from prefab
+        if (spriteRenderer != null)
+        {
+            originalColor = spriteRenderer.color;
+        }
     }
 
     private void Update()
@@ -144,6 +150,6 @@ public class PlayerController : MonoBehaviour
         isDead = false;
         isSliding = false;
         if (spriteRenderer != null)
-            spriteRenderer.color = playerColor;
+            spriteRenderer.color = originalColor;
     }
 }

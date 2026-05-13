@@ -6,31 +6,27 @@ public class GridManager : MonoBehaviour
     private GameObject[,] cellObjects;
     private int mapWidth;
     private int mapHeight;
-    private Sprite sharedSprite;
     private Transform mapParent;
 
-    // Colors
-    private readonly Color floorColor = new Color(0.85f, 0.85f, 0.85f);
-    private readonly Color wallColor = new Color(0.18f, 0.18f, 0.22f);
+    // Fallback white sprite (used only when SpriteConfig has no sprites assigned)
+    private Sprite fallbackSprite;
+
+    // Fallback colors (used only when no sprites are assigned)
+    private readonly Color fallbackFloorColor = new Color(0.85f, 0.85f, 0.85f);
+    private readonly Color fallbackWallColor = new Color(0.18f, 0.18f, 0.22f);
 
     public int MapWidth => mapWidth;
     public int MapHeight => mapHeight;
 
-    public Sprite SharedSprite
-    {
-        get
-        {
-            if (sharedSprite == null) sharedSprite = CreateWhiteSquare();
-            return sharedSprite;
-        }
-    }
-
     private void Awake()
     {
-        sharedSprite = CreateWhiteSquare();
+        fallbackSprite = CreateWhiteSquare();
     }
 
-    public void BuildMap(LevelData data)
+    /// <summary>
+    /// Build the visual grid from LevelData. Uses SpriteConfig for tile visuals if provided.
+    /// </summary>
+    public void BuildMap(LevelData data, SpriteConfig config = null)
     {
         ClearMap();
 
@@ -53,9 +49,36 @@ public class GridManager : MonoBehaviour
                 cell.transform.position = new Vector3(x, y, 0);
 
                 SpriteRenderer sr = cell.AddComponent<SpriteRenderer>();
-                sr.sprite = sharedSprite;
-                sr.color = (type == CellType.Wall) ? wallColor : floorColor;
                 sr.sortingOrder = 0;
+
+                if (type == CellType.Wall)
+                {
+                    Sprite wallSpr = (config != null) ? config.GetRandomWallSprite() : null;
+                    if (wallSpr != null)
+                    {
+                        sr.sprite = wallSpr;
+                        sr.color = Color.white; // use original sprite color
+                    }
+                    else
+                    {
+                        sr.sprite = fallbackSprite;
+                        sr.color = fallbackWallColor;
+                    }
+                }
+                else // Floor
+                {
+                    Sprite floorSpr = (config != null) ? config.GetRandomFloorSprite() : null;
+                    if (floorSpr != null)
+                    {
+                        sr.sprite = floorSpr;
+                        sr.color = Color.white;
+                    }
+                    else
+                    {
+                        sr.sprite = fallbackSprite;
+                        sr.color = fallbackFloorColor;
+                    }
+                }
 
                 cellObjects[x, y] = cell;
             }
@@ -92,6 +115,9 @@ public class GridManager : MonoBehaviour
         return new Vector3((mapWidth - 1) * 0.5f, (mapHeight - 1) * 0.5f, 0f);
     }
 
+    /// <summary>
+    /// Fallback: creates a white square sprite at runtime (used when no sprite assets are assigned).
+    /// </summary>
     private Sprite CreateWhiteSquare()
     {
         int size = 32;
