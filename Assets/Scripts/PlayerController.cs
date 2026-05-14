@@ -130,11 +130,7 @@ public class PlayerController : MonoBehaviour
         // Consume one action point
         turnSystem.ConsumeMove();
 
-        // Check exit only at final landing position & only if still alive
-        if (turnSystem.movesLeft > 0)
-        {
-            gameManager.CheckExitAt(GridPosition);
-        }
+        // CheckExitAt is removed because touching the Key automatically loads the next level now.
     }
 
     public void SetPosition(Vector2Int pos)

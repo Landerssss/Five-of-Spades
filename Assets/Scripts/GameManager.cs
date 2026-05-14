@@ -117,22 +117,16 @@ public class GameManager : MonoBehaviour
             player = playerObj.GetComponent<PlayerController>();
             if (player == null) player = playerObj.AddComponent<PlayerController>();
         }
+        player.StopAllCoroutines();
         player.Revive();
         player.Initialize(this, gridManager, turnSystem, spawnPos);
 
-        // ---- Spawn key ----
+        // ---- Spawn key (which is now the exit) ----
         keyPosition = data.keyPosition;
         keyObject = SpawnPrefab(
             spriteConfig != null ? spriteConfig.keyPrefab : null,
-            "Key", keyPosition);
+            "KeyExit", keyPosition);
         keyObject.transform.SetParent(entitiesParent);
-
-        // ---- Spawn exit (locked) ----
-        exitPosition = data.exitPosition;
-        exitObject = SpawnPrefab(
-            spriteConfig != null ? spriteConfig.exitLockedPrefab : null,
-            "Exit", exitPosition);
-        exitObject.transform.SetParent(entitiesParent);
 
         // ---- Spawn bonus items ----
         bonusPositions.Clear();
@@ -207,7 +201,6 @@ public class GameManager : MonoBehaviour
         if (entitiesParent != null) Destroy(entitiesParent.gameObject);
 
         if (keyObject != null) Destroy(keyObject);
-        if (exitObject != null) Destroy(exitObject);
 
         foreach (var obj in bonusObjects)
             if (obj != null) Destroy(obj);
@@ -221,22 +214,32 @@ public class GameManager : MonoBehaviour
 
     public void CollectItemsAt(Vector2Int pos)
     {
-        // Key
+        // Key (Now acts as the Exit)
         if (!keyCollectedThisLevel && pos == keyPosition && keyObject != null)
         {
             keyCollectedThisLevel = true;
             Destroy(keyObject);
             keyObject = null;
+            keysCollected++;
+            if (uiManager != null) uiManager.UpdateKeys(keysCollected, TotalKeys);
 
-            // Swap exit to unlocked visual
-            SwapExitToUnlocked();
+            // Immediately jump to the next level
+            int nextIndex = currentLevelIndex + 1;
+            if (nextIndex < levels.Length)
+            {
+                LoadLevel(nextIndex, keyPosition);
+            }
+            else
+            {
+                ShowVictory();
+            }
         }
 
         // Bonus
         if (bonusPositions.ContainsKey(pos))
         {
-            int bonus = bonusPositions[pos];
             bonusPositions.Remove(pos);
+            int bonus = 4; // Hardcoded to always add 4
             turnSystem.AddMoves(bonus);
 
             // Destroy the bonus visual
@@ -258,58 +261,7 @@ public class GameManager : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Swap exit object to the unlocked prefab, or just recolor if no prefab.
-    /// </summary>
-    private void SwapExitToUnlocked()
-    {
-        if (exitObject == null) return;
-
-        if (spriteConfig != null && spriteConfig.exitUnlockedPrefab != null)
-        {
-            // Replace with unlocked prefab
-            Vector3 pos = exitObject.transform.position;
-            Transform parent = exitObject.transform.parent;
-            int sortOrder = 1;
-            SpriteRenderer oldSR = exitObject.GetComponent<SpriteRenderer>();
-            if (oldSR != null) sortOrder = oldSR.sortingOrder;
-
-            Destroy(exitObject);
-            exitObject = Instantiate(spriteConfig.exitUnlockedPrefab);
-            exitObject.name = "Exit_Unlocked";
-            exitObject.transform.position = pos;
-            exitObject.transform.SetParent(parent);
-
-            SpriteRenderer newSR = exitObject.GetComponent<SpriteRenderer>();
-            if (newSR != null) newSR.sortingOrder = sortOrder;
-        }
-        else
-        {
-            // Fallback to doing nothing if no prefab
-        }
-    }
-
-    // ============ EXIT CHECK (called by PlayerController after slide completes) ============
-
-    public void CheckExitAt(Vector2Int pos)
-    {
-        if (pos == exitPosition && keyCollectedThisLevel)
-        {
-            keysCollected++;
-            if (uiManager != null) uiManager.UpdateKeys(keysCollected, TotalKeys);
-
-            // Next level: spawn at the same XY as this level's exit
-            int nextIndex = currentLevelIndex + 1;
-            if (nextIndex < levels.Length)
-            {
-                LoadLevel(nextIndex, exitPosition);
-            }
-            else
-            {
-                ShowVictory();
-            }
-        }
-    }
+    // Removed SwapExitToUnlocked and CheckExitAt since Key is now the Exit
 
     // ============ ENEMY QUERY ============
 
