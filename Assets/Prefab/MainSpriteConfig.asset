@@ -16,7 +16,7 @@ MonoBehaviour:
   - {fileID: 5522093476283305063, guid: ec0602aa7ed02bd4ab014b823ab7f58d, type: 3}
   - {fileID: -2239661127065240763, guid: 75aa1347cdbab3246a3033b88ab8669c, type: 3}
   floorSprites: []
-  playerPrefab: {fileID: 0}
+  playerPrefab: {fileID: 7344773453003197744, guid: 916a96a4738b0fd4a82a11ff287431be, type: 3}
   enemyPrefab: {fileID: 0}
   keyPrefab: {fileID: 8470196224894071606, guid: 5897ddf0f82407043ac7cd5076698082, type: 3}
   exitLockedPrefab: {fileID: 0}

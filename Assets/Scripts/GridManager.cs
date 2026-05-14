@@ -44,6 +44,16 @@ public class GridManager : MonoBehaviour
                 CellType type = data.GetCell(x, y);
                 grid[x, y] = type;
 
+                // Check if this is an edge cell
+                bool isEdge = (x == 0 || x == mapWidth - 1 || y == 0 || y == mapHeight - 1);
+                
+                // Skip visual creation for edge cells
+                if (isEdge)
+                {
+                    cellObjects[x, y] = null;
+                    continue;
+                }
+
                 GameObject cell = new GameObject($"Cell_{x}_{y}");
                 cell.transform.parent = mapParent;
                 cell.transform.position = new Vector3(x, y, 0);
