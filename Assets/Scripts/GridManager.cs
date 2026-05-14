@@ -53,6 +53,7 @@ public class GridManager : MonoBehaviour
                     cellObjects[x, y] = null;
                     continue;
                 }
+                
 
                 GameObject cell = new GameObject($"Cell_{x}_{y}");
                 cell.transform.parent = mapParent;
@@ -81,12 +82,12 @@ public class GridManager : MonoBehaviour
                     if (floorSpr != null)
                     {
                         sr.sprite = floorSpr;
-                        sr.color = Color.white;
+                        sr.color = Color.clear; // Make floor transparent
                     }
                     else
                     {
                         sr.sprite = fallbackSprite;
-                        sr.color = fallbackFloorColor;
+                        sr.color = Color.clear; // Make floor transparent
                     }
                 }
 
