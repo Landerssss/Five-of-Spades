@@ -3,7 +3,8 @@ using UnityEngine;
 public enum CellType
 {
     Floor = 0,
-    Wall = 1
+    Wall = 1,
+    Slime = 2
 }
 
 [System.Serializable]

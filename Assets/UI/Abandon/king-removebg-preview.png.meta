@@ -1,10 +1,10 @@
 fileFormatVersion: 2
-guid: 75aa1347cdbab3246a3033b88ab8669c
+guid: 3be27d9ff0c75de4eb17bbe5baa4d046
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: 808738216964961417
-    second: wall2_0
+      213: -4755023320113717135
+    second: king-removebg-preview_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -126,13 +126,13 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: wall2_0
+      name: king-removebg-preview_0
       rect:
         serializedVersion: 2
-        x: 35
-        y: 1
-        width: 470
-        height: 327
+        x: 498
+        y: 0
+        width: 168
+        height: 375
       alignment: 0
       pivot: {x: 0, y: 0}
       border: {x: 0, y: 0, z: 0, w: 0}
@@ -141,8 +141,8 @@ TextureImporter:
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: 984ba7a9f17393b00800000000000000
-      internalID: 808738216964961417
+      spriteID: 1706ce9cb73c20eb0800000000000000
+      internalID: -4755023320113717135
       vertices: []
       indices: 
       edges: []

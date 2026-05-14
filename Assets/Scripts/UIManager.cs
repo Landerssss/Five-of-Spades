@@ -13,6 +13,8 @@ public class UIManager : MonoBehaviour
     private GameObject gameOverPanel;
     private GameObject victoryPanel;
     private Canvas canvas;
+    private SpriteConfig spriteConfig;
+    private List<GameObject> keySlotObjects = new List<GameObject>();
 
     // Colors
     private readonly Color bgColor = new Color(0.1f, 0.1f, 0.14f, 0.85f);
@@ -25,6 +27,11 @@ public class UIManager : MonoBehaviour
     private void Awake()
     {
         BuildUI();
+    }
+
+    public void Initialize(SpriteConfig config)
+    {
+        spriteConfig = config;
     }
 
     private void BuildUI()
@@ -46,9 +53,9 @@ public class UIManager : MonoBehaviour
         RectTransform canvasRT = canvasObj.GetComponent<RectTransform>();
 
         // ---- Moves Display (Top-Left) ----
-        movesText = CreateText(canvasRT, "MovesText", "Actions: 5",
+        movesText = CreateText(canvasRT, "MovesText", "<color=#FF0000><b>5</b></color>",
             new Vector2(0, 1), new Vector2(0, 1),
-            new Vector2(20, -20), new Vector2(300, 60), 32, TextAlignmentOptions.Left);
+            new Vector2(40, -40), new Vector2(200, 100), 64, TextAlignmentOptions.Left);
 
         // ---- Key Slots (Right side) ----
         // Will be rebuilt in UpdateKeys
@@ -86,19 +93,18 @@ public class UIManager : MonoBehaviour
     {
         if (movesText != null)
         {
-            string diamonds = "";
-            for (int i = 0; i < moves; i++) diamonds += "<color=#F5A623>\u2666</color> ";
-            movesText.text = "Actions: " + diamonds + $"({moves})";
+            movesText.text = $"<color=#FF0000><b>{moves}</b></color>";
         }
     }
 
     public void UpdateKeys(int collected, int total)
     {
         // Rebuild key slots
-        foreach (var slot in keySlots)
+        foreach (var obj in keySlotObjects)
         {
-            if (slot != null) Destroy(slot.gameObject);
+            if (obj != null) Destroy(obj);
         }
+        keySlotObjects.Clear();
         keySlots.Clear();
 
         RectTransform canvasRT = canvas.GetComponent<RectTransform>();
@@ -106,16 +112,39 @@ public class UIManager : MonoBehaviour
         for (int i = 0; i < total; i++)
         {
             bool unlocked = i < collected;
-            float yOff = -20f - (i * 55f);
+            float yOff = -40f - (i * 70f);
 
-            TextMeshProUGUI slotText = CreateText(canvasRT, $"KeySlot_{i}",
-                unlocked ? "\u2605" : "\u25A0",
-                new Vector2(1, 1), new Vector2(1, 1),
-                new Vector2(-30, yOff), new Vector2(50, 50),
-                36, TextAlignmentOptions.Center);
+            Sprite icon = null;
+            if (spriteConfig != null)
+            {
+                icon = unlocked ? spriteConfig.uiKeyIcon : spriteConfig.uiLockIcon;
+            }
 
-            slotText.color = unlocked ? keyColor : lockColor;
-            keySlots.Add(slotText);
+            if (icon != null)
+            {
+                // Create UI Image for the key slot
+                GameObject slot = new GameObject($"KeySlot_{i}");
+                slot.transform.SetParent(canvasRT, false);
+                RectTransform rt = slot.AddComponent<RectTransform>();
+                rt.anchorMin = new Vector2(1, 1);
+                rt.anchorMax = new Vector2(1, 1);
+                rt.pivot = new Vector2(1, 1);
+                rt.anchoredPosition = new Vector2(-40, yOff);
+                rt.sizeDelta = new Vector2(60, 60);
+
+                Image img = slot.AddComponent<Image>();
+                img.sprite = icon;
+                img.color = Color.white;
+                
+                keySlotObjects.Add(slot);
+            }
+            else
+            {
+                // Create empty GameObject to avoid null refs
+                GameObject slot = new GameObject($"EmptyKeySlot_{i}");
+                slot.transform.SetParent(canvasRT, false);
+                keySlotObjects.Add(slot);
+            }
         }
     }
 

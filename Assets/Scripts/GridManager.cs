@@ -8,23 +8,11 @@ public class GridManager : MonoBehaviour
     private int mapHeight;
     private Transform mapParent;
 
-    // Fallback white sprite (used only when SpriteConfig has no sprites assigned)
-    private Sprite fallbackSprite;
-
-    // Fallback colors (used only when no sprites are assigned)
-    private readonly Color fallbackFloorColor = new Color(0.85f, 0.85f, 0.85f);
-    private readonly Color fallbackWallColor = new Color(0.18f, 0.18f, 0.22f);
-
     public int MapWidth => mapWidth;
     public int MapHeight => mapHeight;
 
-    private void Awake()
-    {
-        fallbackSprite = CreateWhiteSquare();
-    }
-
     /// <summary>
-    /// Build the visual grid from LevelData. Uses SpriteConfig for tile visuals if provided.
+    /// Build the visual grid from LevelData using Prefabs from SpriteConfig.
     /// </summary>
     public void BuildMap(LevelData data, SpriteConfig config = null)
     {
@@ -47,51 +35,43 @@ public class GridManager : MonoBehaviour
                 // Check if this is an edge cell
                 bool isEdge = (x == 0 || x == mapWidth - 1 || y == 0 || y == mapHeight - 1);
                 
-                // Skip visual creation for edge cells
+                // Skip visual creation for edge cells (they still provide logic collision)
                 if (isEdge)
                 {
                     cellObjects[x, y] = null;
                     continue;
                 }
-                
 
-                GameObject cell = new GameObject($"Cell_{x}_{y}");
-                cell.transform.parent = mapParent;
-                cell.transform.position = new Vector3(x, y, 0);
+                GameObject cell = null;
 
-                SpriteRenderer sr = cell.AddComponent<SpriteRenderer>();
-                sr.sortingOrder = 0;
-
-                if (type == CellType.Wall)
+                if (type == CellType.Wall && config != null && config.wallPrefab != null)
                 {
-                    Sprite wallSpr = (config != null) ? config.GetRandomWallSprite() : null;
-                    if (wallSpr != null)
-                    {
-                        sr.sprite = wallSpr;
-                        sr.color = Color.white; // use original sprite color
-                    }
-                    else
-                    {
-                        sr.sprite = fallbackSprite;
-                        sr.color = fallbackWallColor;
-                    }
+                    cell = Instantiate(config.wallPrefab, mapParent);
+                    cell.name = $"Wall_{x}_{y}";
                 }
-                else // Floor
+                else if (type == CellType.Slime && config != null && config.slimePrefab != null)
                 {
-                    Sprite floorSpr = (config != null) ? config.GetRandomFloorSprite() : null;
-                    if (floorSpr != null)
-                    {
-                        sr.sprite = floorSpr;
-                        sr.color = Color.clear; // Make floor transparent
-                    }
-                    else
-                    {
-                        sr.sprite = fallbackSprite;
-                        sr.color = Color.clear; // Make floor transparent
-                    }
+                    cell = Instantiate(config.slimePrefab, mapParent);
+                    cell.name = $"Slime_{x}_{y}";
+                }
+                else if (type == CellType.Floor && config != null && config.floorPrefab != null)
+                {
+                    cell = Instantiate(config.floorPrefab, mapParent);
+                    cell.name = $"Floor_{x}_{y}";
+                }
+                else
+                {
+                    // If no prefab is provided, we just create an empty GameObject 
+                    // so the array isn't null, but nothing is rendered.
+                    cell = new GameObject($"EmptyCell_{x}_{y}");
+                    cell.transform.parent = mapParent;
                 }
 
-                cellObjects[x, y] = cell;
+                if (cell != null)
+                {
+                    cell.transform.position = new Vector3(x, y, 0);
+                    cellObjects[x, y] = cell;
+                }
             }
         }
     }
@@ -115,7 +95,14 @@ public class GridManager : MonoBehaviour
     public bool IsWalkable(Vector2Int pos)
     {
         if (!IsInBounds(pos)) return false;
-        return grid[pos.x, pos.y] == CellType.Floor;
+        CellType type = grid[pos.x, pos.y];
+        return type == CellType.Floor || type == CellType.Slime;
+    }
+
+    public CellType GetCellType(Vector2Int pos)
+    {
+        if (!IsInBounds(pos)) return CellType.Wall;
+        return grid[pos.x, pos.y];
     }
 
     /// <summary>
@@ -124,20 +111,5 @@ public class GridManager : MonoBehaviour
     public Vector3 GetMapCenter()
     {
         return new Vector3((mapWidth - 1) * 0.5f, (mapHeight - 1) * 0.5f, 0f);
-    }
-
-    /// <summary>
-    /// Fallback: creates a white square sprite at runtime (used when no sprite assets are assigned).
-    /// </summary>
-    private Sprite CreateWhiteSquare()
-    {
-        int size = 32;
-        Texture2D tex = new Texture2D(size, size);
-        tex.filterMode = FilterMode.Point;
-        Color[] pixels = new Color[size * size];
-        for (int i = 0; i < pixels.Length; i++) pixels[i] = Color.white;
-        tex.SetPixels(pixels);
-        tex.Apply();
-        return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), size);
     }
 }

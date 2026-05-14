@@ -83,7 +83,14 @@ public class PlayerController : MonoBehaviour
             Vector2Int next = current + direction;
             if (!gridManager.IsWalkable(next)) break;
             if (gameManager.HasEnemyAt(next)) break;
+            
             current = next;
+
+            // Stop sliding immediately if we land on a Slime tile
+            if (gridManager.GetCellType(current) == CellType.Slime)
+            {
+                break;
+            }
         }
         return current;
     }

@@ -52,6 +52,13 @@ public class GameManager : MonoBehaviour
 
     private void Start()
     {
+        if (uiManager != null) 
+        {
+            uiManager.Initialize(spriteConfig);
+            // Ensure UI updates when moves change
+            turnSystem.OnMovesChanged += () => uiManager.UpdateMoves(turnSystem.movesLeft);
+        }
+        
         turnSystem.OnMovesExhausted += OnPlayerDied;
         turnSystem.OnPlayerMoved += OnEnemiesTurn;
 
@@ -104,9 +111,9 @@ public class GameManager : MonoBehaviour
 
         if (playerObj == null)
         {
-            playerObj = SpawnPrefabOrFallback(
+            playerObj = SpawnPrefab(
                 spriteConfig != null ? spriteConfig.playerPrefab : null,
-                "Player", spawnPos, 5, Color.blue);
+                "Player", spawnPos);
             player = playerObj.GetComponent<PlayerController>();
             if (player == null) player = playerObj.AddComponent<PlayerController>();
         }
@@ -115,16 +122,16 @@ public class GameManager : MonoBehaviour
 
         // ---- Spawn key ----
         keyPosition = data.keyPosition;
-        keyObject = SpawnPrefabOrFallback(
+        keyObject = SpawnPrefab(
             spriteConfig != null ? spriteConfig.keyPrefab : null,
-            "Key", keyPosition, 2, new Color(0.96f, 0.65f, 0.14f));
+            "Key", keyPosition);
         keyObject.transform.SetParent(entitiesParent);
 
         // ---- Spawn exit (locked) ----
         exitPosition = data.exitPosition;
-        exitObject = SpawnPrefabOrFallback(
+        exitObject = SpawnPrefab(
             spriteConfig != null ? spriteConfig.exitLockedPrefab : null,
-            "Exit", exitPosition, 1, new Color(0.82f, 0.01f, 0.11f));
+            "Exit", exitPosition);
         exitObject.transform.SetParent(entitiesParent);
 
         // ---- Spawn bonus items ----
@@ -135,8 +142,7 @@ public class GameManager : MonoBehaviour
             {
                 var bonus = data.bonusItems[i];
                 GameObject prefab = (spriteConfig != null) ? spriteConfig.GetBonusPrefab(i) : null;
-                GameObject obj = SpawnPrefabOrFallback(
-                    prefab, "Bonus", bonus.position, 2, new Color(0.31f, 0.89f, 0.76f));
+                GameObject obj = SpawnPrefab(prefab, "Bonus", bonus.position);
                 obj.transform.SetParent(entitiesParent);
                 bonusObjects.Add(obj);
                 bonusPositions[bonus.position] = bonus.bonusAmount;
@@ -153,8 +159,7 @@ public class GameManager : MonoBehaviour
 
                 GameObject prefab = (spriteConfig != null) ? spriteConfig.enemyPrefab : null;
                 Vector2Int startPos = enemyData.patrolPath[0];
-                GameObject enemyObj = SpawnPrefabOrFallback(
-                    prefab, "Enemy", startPos, 3, new Color(0.56f, 0.07f, 1f));
+                GameObject enemyObj = SpawnPrefab(prefab, "Enemy", startPos);
                 enemyObj.transform.SetParent(entitiesParent);
 
                 EnemyPatrol patrol = enemyObj.GetComponent<EnemyPatrol>();
@@ -177,10 +182,9 @@ public class GameManager : MonoBehaviour
     }
 
     /// <summary>
-    /// If prefab is assigned, instantiate it. Otherwise create a fallback colored square.
+    /// Instantiates the prefab. If null, creates an empty GameObject.
     /// </summary>
-    private GameObject SpawnPrefabOrFallback(GameObject prefab, string name,
-        Vector2Int gridPos, int sortOrder, Color fallbackColor)
+    private GameObject SpawnPrefab(GameObject prefab, string name, Vector2Int gridPos)
     {
         GameObject obj;
 
@@ -191,41 +195,11 @@ public class GameManager : MonoBehaviour
         }
         else
         {
-            // Fallback: create a colored square (same as old behavior)
             obj = new GameObject(name);
-            SpriteRenderer sr = obj.AddComponent<SpriteRenderer>();
-            sr.sprite = CreateFallbackSprite();
-            sr.color = fallbackColor;
-            sr.sortingOrder = sortOrder;
-            obj.transform.localScale = Vector3.one * 0.75f;
         }
 
         obj.transform.position = new Vector3(gridPos.x, gridPos.y, 0);
-
-        // Ensure SpriteRenderer sorting order is set for prefabs too
-        SpriteRenderer prefabSR = obj.GetComponent<SpriteRenderer>();
-        if (prefabSR != null)
-        {
-            prefabSR.sortingOrder = sortOrder;
-        }
-
         return obj;
-    }
-
-    private Sprite _fallbackSprite;
-    private Sprite CreateFallbackSprite()
-    {
-        if (_fallbackSprite != null) return _fallbackSprite;
-        int size = 32;
-        Texture2D tex = new Texture2D(size, size);
-        tex.filterMode = FilterMode.Point;
-        Color[] px = new Color[size * size];
-        for (int i = 0; i < px.Length; i++) px[i] = Color.white;
-        tex.SetPixels(px);
-        tex.Apply();
-        _fallbackSprite = Sprite.Create(tex, new Rect(0, 0, size, size),
-            new Vector2(0.5f, 0.5f), size);
-        return _fallbackSprite;
     }
 
     private void ClearEntities()
@@ -311,12 +285,7 @@ public class GameManager : MonoBehaviour
         }
         else
         {
-            // Fallback: just recolor
-            SpriteRenderer sr = exitObject.GetComponent<SpriteRenderer>();
-            if (sr != null) sr.color = new Color(0.49f, 0.83f, 0.13f);
-
-            TMPro.TextMeshPro tmp = exitObject.GetComponentInChildren<TMPro.TextMeshPro>();
-            if (tmp != null) tmp.text = "E";
+            // Fallback to doing nothing if no prefab
         }
     }
 
